@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.routes.js';
+import projectRoutes from './routes/project.routes.js';
 import connectDB from './db/db.js';
 
 const app = express();
@@ -21,6 +22,9 @@ app.use(cookieParser());
 
 // Mount the Auth Service routes
 app.use('/auth', authRoutes);
+
+// Mount the Project Service routes
+app.use('/projects', projectRoutes);
 
 // Global Error Handler for unhandled errors
 app.use((err, req, res, next) => {
