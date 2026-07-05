@@ -23,7 +23,9 @@ const STRIPPED_HEADERS = new Set([
   'host',
   'authorization',
   'content-length',
+  'transfer-encoding',
   'connection',
+  'keep-alive',
 ]);
 
 /**
