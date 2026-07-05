@@ -421,6 +421,118 @@ async function runTests() {
       await mongoose.disconnect();
     }
 
+    console.log('\n--- Phase 4: Reverse Proxy Tests ---');
+
+    // ── Setup: create a proxy test project pointing at jsonplaceholder ──────
+    // We reuse tokenA from Phase 1 — the user is still authenticated.
+    let proxyProject = null;
+    const createProxyProj = await request('POST', '/projects', {
+      name: 'Proxy Test Project',
+      targetBaseUrl: 'https://jsonplaceholder.typicode.com',
+    }, { 'Authorization': `Bearer ${tokenA}` });
+
+    if (createProxyProj.status === 201 && createProxyProj.body.apiKey) {
+      proxyProject = createProxyProj.body;
+      console.log(`  [INFO] Proxy project created. apiKey: ${proxyProject.apiKey}`);
+    } else {
+      throw new Error(`Failed to create proxy project: ${JSON.stringify(createProxyProj.body)}`);
+    }
+
+    const KEY = proxyProject.apiKey;
+
+    // ── Test P1: GET a single post — valid proxy, expect 200 ─────────────────
+    const pp1 = await request('GET', `/proxy/${KEY}/posts/1`);
+    if (pp1.status === 200 && pp1.body.id === 1) {
+      console.log('  [PASS] Proxy GET /posts/1: Status 200, body matches upstream.');
+    } else {
+      console.log('  [FAIL] Proxy GET /posts/1: Got', pp1.status, JSON.stringify(pp1.body).slice(0, 80));
+    }
+
+    // ── Test P2: GET /posts — returns an array of 100 posts ──────────────────
+    const pp2 = await request('GET', `/proxy/${KEY}/posts`);
+    if (pp2.status === 200 && Array.isArray(pp2.body) && pp2.body.length > 0) {
+      console.log(`  [PASS] Proxy GET /posts: Status 200, array of ${pp2.body.length} posts.`);
+    } else {
+      console.log('  [FAIL] Proxy GET /posts: Got', pp2.status, JSON.stringify(pp2.body).slice(0, 80));
+    }
+
+    // ── Test P3: POST with JSON body — jsonplaceholder echoes back 201 ───────
+    const pp3 = await request('POST', `/proxy/${KEY}/posts`, {
+      title: 'Proxy Test',
+      body: 'Hello from the proxy',
+      userId: 1,
+    });
+    if (pp3.status === 201 && pp3.body.title === 'Proxy Test') {
+      console.log('  [PASS] Proxy POST /posts: Status 201, body echoed correctly.');
+    } else {
+      console.log('  [FAIL] Proxy POST /posts: Got', pp3.status, JSON.stringify(pp3.body).slice(0, 80));
+    }
+
+    // ── Test P4: Invalid apiKey → 404 ────────────────────────────────────────
+    const pp4 = await request('GET', '/proxy/invalid_key_does_not_exist/posts/1');
+    if (pp4.status === 404 && pp4.body.error === 'Invalid API key') {
+      console.log('  [PASS] Invalid API Key: Returned 404 { error: "Invalid API key" }.');
+    } else {
+      console.log('  [FAIL] Invalid API Key: Got', pp4.status, pp4.body);
+    }
+
+    // ── Test P5: Upstream returns 404 — must pass through, not become 502 ────
+    const pp5 = await request('GET', `/proxy/${KEY}/posts/999999999`);
+    if (pp5.status === 404) {
+      console.log('  [PASS] Upstream 404 Pass-Through: Returned 404 (not 502).');
+    } else {
+      console.log('  [FAIL] Upstream 404 Pass-Through: Got', pp5.status, pp5.body);
+    }
+
+    // ── Test P6: Unreachable upstream → 502 ──────────────────────────────────
+    // Temporarily update the project to point at a non-existent domain,
+    // then restore it afterwards.
+    await request('PATCH', `/projects/${proxyProject.id}`, {
+      targetBaseUrl: 'https://this-domain-does-not-exist-99999.com',
+    }, { 'Authorization': `Bearer ${tokenA}` });
+
+    const pp6 = await request('GET', `/proxy/${KEY}/anything`);
+    if (pp6.status === 502 && pp6.body.error === 'Upstream API unreachable') {
+      console.log('  [PASS] Unreachable Upstream: Returned 502 { error: "Upstream API unreachable" }.');
+    } else {
+      console.log('  [FAIL] Unreachable Upstream: Got', pp6.status, pp6.body);
+    }
+
+    // Restore targetBaseUrl to jsonplaceholder for remaining tests
+    await request('PATCH', `/projects/${proxyProject.id}`, {
+      targetBaseUrl: 'https://jsonplaceholder.typicode.com',
+    }, { 'Authorization': `Bearer ${tokenA}` });
+
+    // ── Test P7: Double-slash prevention ─────────────────────────────────────
+    // Create a project with a trailing slash on targetBaseUrl
+    const trailingSlashProj = await request('POST', '/projects', {
+      name: 'Trailing Slash Project',
+      targetBaseUrl: 'https://jsonplaceholder.typicode.com/',  // trailing slash
+    }, { 'Authorization': `Bearer ${tokenA}` });
+
+    if (trailingSlashProj.status === 201) {
+      const tsKey = trailingSlashProj.body.apiKey;
+      const pp7 = await request('GET', `/proxy/${tsKey}/posts/1`);
+      if (pp7.status === 200 && pp7.body.id === 1) {
+        console.log('  [PASS] Double-Slash Prevention: Trailing slash base URL proxied correctly, status 200.');
+      } else {
+        console.log('  [FAIL] Double-Slash Prevention: Got', pp7.status, JSON.stringify(pp7.body).slice(0, 80));
+      }
+    } else {
+      console.log('  [SKIP] Double-Slash Prevention: Could not create trailing-slash project.');
+    }
+
+    // ── Test P8: Query string preservation ───────────────────────────────────
+    // GET /proxy/<key>/comments?postId=1 should forward ?postId=1 upstream
+    // and return only the 5 comments for postId=1 (not all 500 comments).
+    const pp8 = await request('GET', `/proxy/${KEY}/comments?postId=1`);
+    if (pp8.status === 200 && Array.isArray(pp8.body) && pp8.body.every(c => c.postId === 1)) {
+      console.log(`  [PASS] Query String Preservation: Returned ${pp8.body.length} comments all with postId=1.`);
+    } else {
+      console.log('  [FAIL] Query String Preservation: Got', pp8.status,
+        Array.isArray(pp8.body) ? `array of ${pp8.body.length}` : pp8.body);
+    }
+
     console.log('\n=== All Verification Tests Completed ===');
   } catch (error) {
     console.error('\nError conducting verification tests:', error);
@@ -428,3 +540,4 @@ async function runTests() {
 }
 
 runTests();
+

@@ -203,3 +203,107 @@ You can run our automated HTTP verification script to test all 10 acceptance cri
     ```
 
 This script will run sequential requests verifying: signup, duplicate registration, validation, login success/failure, protected route authentication, refresh flow, cookie attributes, and ensuring the password field is never leaked in JSON responses.
+
+---
+
+## Part 3 — Reverse Proxy
+
+The reverse proxy allows external consumers of a Project to route their API calls through the platform using just the Project's `apiKey`. No JWT is required — the apiKey embedded in the URL is the sole authentication mechanism.
+
+### Endpoint
+
+```
+ALL /proxy/:apiKey/*
+```
+
+| Component | Description |
+|---|---|
+| `:apiKey` | The Project's auto-generated API key |
+| `/*` | Wildcard — any path, forwarded verbatim to `targetBaseUrl` |
+
+### How It Works
+
+1. Validates the `apiKey` against the database (`Project.findOne({ apiKey })`).
+2. Builds the target URL: `project.targetBaseUrl + forwardedPath + ?queryString`.
+3. Strips sensitive headers before forwarding: `host`, `authorization`, `content-length`, `connection`.
+4. Forwards the request via `axios` with a **10-second timeout**.
+5. Relays the upstream response (status + body + content-type) back to the caller unchanged — including 4xx/5xx.
+6. Returns **502** if the upstream is unreachable (DNS failure, timeout, etc.).
+
+### Postman / curl Testing with JSONPlaceholder
+
+**Step 1 — Create a proxy project** (requires Bearer token from login/signup):
+
+```
+POST http://localhost:5000/projects
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+
+{
+  "name": "JSONPlaceholder Proxy",
+  "targetBaseUrl": "https://jsonplaceholder.typicode.com"
+}
+```
+
+Copy the `apiKey` from the response. Use `<KEY>` below.
+
+---
+
+**GET a single post (AC #2):**
+```
+GET http://localhost:5000/proxy/<KEY>/posts/1
+```
+Expected: **200**, same JSON as `https://jsonplaceholder.typicode.com/posts/1`
+
+---
+
+**GET all posts (AC #3):**
+```
+GET http://localhost:5000/proxy/<KEY>/posts
+```
+Expected: **200**, array of 100 posts
+
+---
+
+**POST with body (AC #4):**
+```
+POST http://localhost:5000/proxy/<KEY>/posts
+Content-Type: application/json
+
+{
+  "title": "Hello Proxy",
+  "body": "Test body",
+  "userId": 1
+}
+```
+Expected: **201**, jsonplaceholder echoes back the created object
+
+---
+
+**Invalid API key (AC #5):**
+```
+GET http://localhost:5000/proxy/invalid_key/posts/1
+```
+Expected: **404** `{ "error": "Invalid API key" }`
+
+---
+
+**Upstream 404 pass-through (AC #6):**
+```
+GET http://localhost:5000/proxy/<KEY>/posts/999999999
+```
+Expected: **404** from jsonplaceholder (not 502 — proves 4xx are passed through)
+
+---
+
+**Query string preservation (AC #9):**
+```
+GET http://localhost:5000/proxy/<KEY>/comments?postId=1
+```
+Expected: **200**, array of 5 comments all with `postId: 1`
+
+---
+
+**502 on unreachable upstream (AC #7):**
+Update the project's `targetBaseUrl` to `https://this-domain-does-not-exist-99999.com` via `PATCH /projects/:id`, then call any proxy route. Expected: **502** `{ "error": "Upstream API unreachable" }`
+

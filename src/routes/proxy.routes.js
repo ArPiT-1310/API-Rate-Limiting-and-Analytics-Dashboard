@@ -1,0 +1,23 @@
+import { Router } from 'express';
+import { proxyRequest } from '../controllers/proxy.controller.js';
+
+// mergeParams: true ensures params from parent router (if any) are also
+// available. Not strictly required here, but a good habit for nested routers.
+const router = Router({ mergeParams: true });
+
+/**
+ * ALL /proxy/:apiKey/*
+ *
+ * The wildcard `*` captures everything after the apiKey segment as req.params[0].
+ * For example:
+ *   /proxy/abc123/users/45?foo=bar
+ *     → req.params.apiKey = "abc123"
+ *     → req.params[0]     = "users/45"
+ *     → req.url           = "/users/45?foo=bar"  (relative to this router mount)
+ *
+ * No verifyToken middleware is used here — this endpoint is intentionally
+ * public, authenticated only by the apiKey embedded in the URL.
+ */
+router.all('/:apiKey/*', proxyRequest);
+
+export default router;

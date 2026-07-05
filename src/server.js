@@ -5,6 +5,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.routes.js';
 import projectRoutes from './routes/project.routes.js';
+import proxyRoutes from './routes/proxy.routes.js';
 import connectDB from './db/db.js';
 
 const app = express();
@@ -25,6 +26,9 @@ app.use('/auth', authRoutes);
 
 // Mount the Project Service routes
 app.use('/projects', projectRoutes);
+
+// Mount the Reverse Proxy routes (public — no JWT required, authenticated by apiKey)
+app.use('/proxy', proxyRoutes);
 
 // Global Error Handler for unhandled errors
 app.use((err, req, res, next) => {
