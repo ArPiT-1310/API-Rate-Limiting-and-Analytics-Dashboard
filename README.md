@@ -307,3 +307,60 @@ Expected: **200**, array of 5 comments all with `postId: 1`
 **502 on unreachable upstream (AC #7):**
 Update the project's `targetBaseUrl` to `https://this-domain-does-not-exist-99999.com` via `PATCH /projects/:id`, then call any proxy route. Expected: **502** `{ "error": "Upstream API unreachable" }`
 
+---
+
+## Rate Limiting (Part 4)
+
+The platform enforces project-specific rate limits using a Redis-backed **Fixed Window Rate Limiting** algorithm.
+
+### Key Implementation Details
+1. **Atomic Increments**: We use Redis `INCR` to atomically increment request counts. This prevents race conditions under highly concurrent requests (unlike a read-then-write pattern, e.g. `GET` then `SET`).
+2. **Dynamic TTLs**: On the first request in a new window, the key is set to expire (`EXPIRE`) based on the Project's configured `rateLimit.windowMs` (converted to ceil seconds).
+3. **Fail-Open Strategy**: If Redis goes down or times out (1s limit), the proxy *fails open*. It logs the error on the server side and forwards the request without rate limiting. This guarantees high API availability and avoids complete service outages during Redis maintenance or downtime.
+4. **Header Reporting**: Every response (both successful and rate-limited) includes standard headers:
+   - `X-RateLimit-Limit`: Maximum requests allowed in the window.
+   - `X-RateLimit-Remaining`: Requests left in the current window.
+   - `X-RateLimit-Reset`: Remaining time in seconds before the window resets.
+5. **Rate Limit Exceeded (429)**: When limits are exceeded, a `429 Too Many Requests` is returned with a `Retry-After` header indicating when requests can resume, and a body of `{ error: "Rate limit exceeded", retryAfter: <seconds> }`.
+
+### Testing Rate Limiting
+
+We provide both a visual manual testing file (`requests.http`) and an automated test suite (`test-ratelimiter.js`).
+
+#### 1. Automated Verification Suite
+We have added an automated script that tests all 9 acceptance criteria (including sequential requests, concurrent/parallel requests, independent projects, invalid API keys, and docker-based Redis fail-over):
+
+To run it:
+1. Ensure the backend server is running (`npm run dev`).
+2. In a separate terminal, run:
+   ```bash
+   npm run test:rate-limit
+   ```
+
+#### 2. Manual Testing (Fast Testing Setup)
+To manually test the rate limiter without waiting a full 60 seconds:
+1. Create a test project with a lower window size, e.g., 10 seconds:
+   ```http
+   POST http://localhost:5000/projects
+   Authorization: Bearer <token>
+   Content-Type: application/json
+
+   {
+     "name": "Fast Test Project",
+     "targetBaseUrl": "https://jsonplaceholder.typicode.com",
+     "rateLimit": {
+       "windowMs": 10000,
+       "maxRequests": 5
+     }
+   }
+   ```
+2. Call the proxy sequentially using the returned API key:
+   ```bash
+   curl -i http://localhost:5000/proxy/<API_KEY>/posts/1
+   ```
+   Observe the headers:
+   - `X-RateLimit-Remaining` will decrement from `4` to `0`.
+   - On the 6th call, you'll receive a `429 Too Many Requests` status code with `Retry-After` header and `{ "error": "Rate limit exceeded", "retryAfter": <seconds> }` JSON body.
+3. Wait 10 seconds and call again; it will succeed again.
+
+

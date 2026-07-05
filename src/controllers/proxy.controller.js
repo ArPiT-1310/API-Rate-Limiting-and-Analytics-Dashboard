@@ -78,13 +78,36 @@ function buildForwardHeaders(incomingHeaders) {
 }
 
 /**
+ * Middleware to lookup the Project by apiKey from MongoDB.
+ * Attaches the project object to req.project for subsequent middlewares/controllers.
+ * If project is not found, returns a 404 response.
+ */
+export const lookupProject = async (req, res, next) => {
+  const { apiKey } = req.params;
+
+  try {
+    const project = await Project.findOne({ apiKey }).lean();
+
+    if (!project) {
+      return res.status(404).json({ error: 'Invalid API key' });
+    }
+
+    req.project = project;
+    next();
+  } catch (error) {
+    console.error(`[LookupProject] Error looking up project for apiKey="${apiKey}":`, error.message);
+    return res.status(500).json({ error: 'Internal server error during project lookup' });
+  }
+};
+
+/**
  * ALL /proxy/:apiKey/*
  *
  * Public-facing reverse proxy endpoint. Authentication is done exclusively
  * via the apiKey URL parameter — no JWT / verifyToken is used here.
  *
  * Flow:
- *  1. Validate the apiKey against the Projects collection.
+ *  1. Use pre-validated req.project.
  *  2. Build the target URL (base + path + query string).
  *  3. Strip hop-by-hop / platform-internal headers.
  *  4. Forward the request via axios with a 10 s timeout.
@@ -92,14 +115,11 @@ function buildForwardHeaders(incomingHeaders) {
  *  6. On network/DNS/timeout failure → 502.
  */
 export const proxyRequest = async (req, res) => {
-  const { apiKey } = req.params;
-
-  // ── Step 1: API Key validation ──────────────────────────────────────────────
-  const project = await Project.findOne({ apiKey }).lean();
-
+  const project = req.project;
   if (!project) {
-    return res.status(404).json({ error: 'Invalid API key' });
+    return res.status(500).json({ error: 'Project not loaded in request' });
   }
+  const { apiKey } = req.params;
 
   // ── Step 2: Build the forwarded URL ─────────────────────────────────────────
   // req.params[0] is the wildcard segment captured after the apiKey in the route

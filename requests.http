@@ -1,0 +1,96 @@
+### API Rate Limiting & Analytics Dashboard - HTTP Requests Collection
+# This file can be run directly using the VS Code REST Client extension.
+
+@baseUrl = http://localhost:5000
+@email = tester_{{$timestamp}}@example.com
+@password = Password123!
+
+### 1. Signup New User
+# @name signup
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+  "name": "Limiter Tester",
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### 2. Login User (to get accessToken)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Get Access Token from Login Response
+@authToken = {{login.response.body.accessToken}}
+
+### 3. Create Project A (Standard Rate Limit: 5 requests per minute)
+# @name createProjectA
+POST {{baseUrl}}/projects
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "name": "Standard Rate Limit Project",
+  "targetBaseUrl": "https://jsonplaceholder.typicode.com",
+  "rateLimit": {
+    "windowMs": 60000,
+    "maxRequests": 5
+  }
+}
+
+### Get API Key for Project A
+@apiKeyA = {{createProjectA.response.body.apiKey}}
+
+### 4. Create Project B (Fast Testing Rate Limit: 5 requests per 10 seconds)
+# @name createProjectB
+POST {{baseUrl}}/projects
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "name": "Fast Test Project",
+  "targetBaseUrl": "https://jsonplaceholder.typicode.com",
+  "rateLimit": {
+    "windowMs": 10000,
+    "maxRequests": 5
+  }
+}
+
+### Get API Key for Project B
+@apiKeyB = {{createProjectB.response.body.apiKey}}
+
+### =========================================================================
+### PROXY & RATE LIMITING TEST SUITE
+### =========================================================================
+
+### Test Request 1: Call Proxy (Project B - Expect 200, check rate limit headers)
+GET {{baseUrl}}/proxy/{{apiKeyB}}/posts/1
+
+### Test Request 2: Call Proxy (Project B - Expect 200, remaining count decreases)
+GET {{baseUrl}}/proxy/{{apiKeyB}}/posts/1
+
+### Test Request 3: Call Proxy (Project B - Expect 200)
+GET {{baseUrl}}/proxy/{{apiKeyB}}/posts/1
+
+### Test Request 4: Call Proxy (Project B - Expect 200)
+GET {{baseUrl}}/proxy/{{apiKeyB}}/posts/1
+
+### Test Request 5: Call Proxy (Project B - Expect 200, remaining count is 0)
+GET {{baseUrl}}/proxy/{{apiKeyB}}/posts/1
+
+### Test Request 6: Call Proxy (Project B - Expect 429 Rate Limit Exceeded)
+# Wait up to 10 seconds from Request 1 to see the window reset. If sent within
+# 10 seconds of Request 1, this will return 429 status code with a JSON error.
+GET {{baseUrl}}/proxy/{{apiKeyB}}/posts/1
+
+### Test Request 7: Invalid API Key Bypass (Expect 404, no rate limit headers)
+GET {{baseUrl}}/proxy/invalid_api_key_xyz_987/posts/1
+
+### Test Request 8: Query Parameters Preservation
+GET {{baseUrl}}/proxy/{{apiKeyB}}/comments?postId=1
