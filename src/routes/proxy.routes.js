@@ -23,6 +23,9 @@ const router = Router({ mergeParams: true });
  * Second, the rateLimiter middleware checks the rate limits using Redis.
  * Finally, proxyRequest forwards the request upstream.
  */
-router.all('/:apiKey/*', lookupProject, rateLimiter, proxyRequest);
+router.all('/:apiKey/*', (req, res, next) => {
+  req.startTime = Date.now();
+  next();
+}, lookupProject, rateLimiter, proxyRequest);
 
 export default router;

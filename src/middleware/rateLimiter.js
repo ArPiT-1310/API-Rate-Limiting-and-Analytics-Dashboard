@@ -1,4 +1,5 @@
 import redis from '../config/redis.js';
+import { logRequest } from '../utils/logRequest.js';
 
 /**
  * Helper to wrap a promise in a timeout to prevent requests from hanging
@@ -75,6 +76,20 @@ export const rateLimiter = async (req, res, next) => {
     // 5. Check if limit is exceeded
     if (count > maxRequests) {
       res.setHeader('Retry-After', resetSeconds);
+
+      // Log the rate limited request (fire-and-forget)
+      logRequest({
+        projectId: project._id,
+        endpoint: '/' + (req.params[0] || '').replace(/^\/+/, ''),
+        method: req.method,
+        statusCode: 429,
+        responseTimeMs: Date.now() - (req.startTime || Date.now()),
+        wasRateLimited: true,
+        ipAddress: req.ip,
+        testDelayLogging: req.headers['x-test-delay-logging'] === 'true',
+        testFailLogging: req.headers['x-test-fail-logging'] === 'true',
+      }).catch((err) => console.error('Failed to write request log:', err));
+
       return res.status(429).json({
         error: 'Rate limit exceeded',
         retryAfter: resetSeconds,

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import Project from '../models/Project.js';
+import { logRequest } from '../utils/logRequest.js';
 
 /**
  * Headers that should NEVER be forwarded to the target upstream API.
@@ -176,6 +177,19 @@ export const proxyRequest = async (req, res) => {
       res.setHeader('Content-Type', contentType);
     }
 
+    // Log the successful proxy request (fire-and-forget)
+    logRequest({
+      projectId: project._id,
+      endpoint: '/' + (rawPath || '').replace(/^\/+/, ''),
+      method: req.method,
+      statusCode: upstreamResponse.status,
+      responseTimeMs: Date.now() - (req.startTime || Date.now()),
+      wasRateLimited: false,
+      ipAddress: req.ip,
+      testDelayLogging: req.headers['x-test-delay-logging'] === 'true',
+      testFailLogging: req.headers['x-test-fail-logging'] === 'true',
+    }).catch((err) => console.error('Failed to write request log:', err));
+
     // Send back the exact same status and body — the proxy is transparent.
     return res.status(upstreamResponse.status).send(upstreamResponse.data);
 
@@ -184,6 +198,19 @@ export const proxyRequest = async (req, res) => {
     // This branch only fires when axios could NOT reach the upstream at all
     // (ENOTFOUND, ECONNREFUSED, ETIMEDOUT, etc.) — it does NOT fire for
     // 4xx/5xx responses, which are handled by validateStatus above.
+    // Log the failed proxy request (fire-and-forget)
+    logRequest({
+      projectId: project._id,
+      endpoint: '/' + (rawPath || '').replace(/^\/+/, ''),
+      method: req.method,
+      statusCode: 502,
+      responseTimeMs: Date.now() - (req.startTime || Date.now()),
+      wasRateLimited: false,
+      ipAddress: req.ip,
+      testDelayLogging: req.headers['x-test-delay-logging'] === 'true',
+      testFailLogging: req.headers['x-test-fail-logging'] === 'true',
+    }).catch((err) => console.error('Failed to write request log:', err));
+
     console.error(`[Proxy] Upstream request failed for apiKey="${apiKey}" → ${targetUrl}:`, error.message);
     return res.status(502).json({ error: 'Upstream API unreachable' });
   }

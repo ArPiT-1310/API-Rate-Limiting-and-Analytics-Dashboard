@@ -9,6 +9,7 @@ import proxyRoutes from './routes/proxy.routes.js';
 import connectDB from './db/db.js';
 
 const app = express();
+app.set('trust proxy', true);
 const PORT = process.env.PORT || 5000;
 
 // Setup CORS with credentials support for httpOnly cookies
