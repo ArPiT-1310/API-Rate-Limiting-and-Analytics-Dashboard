@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.routes.js';
 import projectRoutes from './routes/project.routes.js';
 import proxyRoutes from './routes/proxy.routes.js';
+import analyticsRoutes from './routes/analytics.routes.js';
 import connectDB from './db/db.js';
 
 const app = express();
@@ -27,6 +28,10 @@ app.use('/auth', authRoutes);
 
 // Mount the Project Service routes
 app.use('/projects', projectRoutes);
+
+// Mount the Analytics & Logs routes under /projects/:id so ownership middleware
+// can access req.params.id via mergeParams on the child router
+app.use('/projects/:id', analyticsRoutes);
 
 // Mount the Reverse Proxy routes (public — no JWT required, authenticated by apiKey)
 app.use('/proxy', proxyRoutes);

@@ -363,4 +363,149 @@ To manually test the rate limiter without waiting a full 60 seconds:
    - On the 6th call, you'll receive a `429 Too Many Requests` status code with `Retry-After` header and `{ "error": "Rate limit exceeded", "retryAfter": <seconds> }` JSON body.
 3. Wait 10 seconds and call again; it will succeed again.
 
+---
+
+## Analytics API (Part 6)
+
+All analytics endpoints are **JWT-protected** and **ownership-gated** — a user can only query analytics for their own projects. Authentication uses the same `Bearer` token from `/auth/login`.
+
+> **Base path:** `/projects/:id/analytics` and `/projects/:id/logs`
+> Replace `:id` with the project's MongoDB ObjectId (from `GET /projects`).
+
+---
+
+### Query Param: `?range`
+
+Accepted values: `24h` (default), `7d`, `30d`. Any invalid value falls back to `24h`.
+
+| Value | Timeseries buckets | Cutoff |
+|---|---|---|
+| `24h` | Hourly (24–25 entries, current hour always last) | now − 24 hours |
+| `7d`  | Daily (7–8 entries, current day always last)     | now − 7 days   |
+| `30d` | Daily (30–31 entries, current day always last)   | now − 30 days  |
+
+---
+
+### 1. GET `/projects/:id/analytics/summary`
+
+Returns aggregated stats for the project within the chosen time range.
+
+**Headers:** `Authorization: Bearer <accessToken>`
+
+**Example response (200 OK):**
+```json
+{
+  "totalRequests": 47,
+  "avgResponseTimeMs": 312,
+  "errorRate": 12.77,
+  "rateLimitedCount": 5
+}
+```
+
+**Zero-traffic response (no logs yet):**
+```json
+{ "totalRequests": 0, "avgResponseTimeMs": 0, "errorRate": 0, "rateLimitedCount": 0 }
+```
+
+> `errorRate` counts only requests with `statusCode >= 400` that were **not** from the platform rate limiter (`wasRateLimited: false`). Rate-limiter 429s appear in `rateLimitedCount` only.
+
+---
+
+### 2. GET `/projects/:id/analytics/timeseries`
+
+Returns per-bucket request counts and average response times, sorted chronologically (oldest first). **Gaps are zero-filled** — every hour/day in the range has an entry even with zero traffic.
+
+**Headers:** `Authorization: Bearer <accessToken>`
+
+**Example response (200 OK, `?range=24h`):**
+```json
+[
+  { "bucket": "2026-07-05T10:00:00.000Z", "count": 0, "avgResponseTimeMs": 0 },
+  { "bucket": "2026-07-05T11:00:00.000Z", "count": 3, "avgResponseTimeMs": 287 },
+  { "bucket": "2026-07-05T12:00:00.000Z", "count": 0, "avgResponseTimeMs": 0 }
+]
+```
+
+---
+
+### 3. GET `/projects/:id/analytics/status-breakdown`
+
+Groups all requests in the range by HTTP status category.
+
+**Headers:** `Authorization: Bearer <accessToken>`
+
+**Example response (200 OK):**
+```json
+{
+  "success2xx": 30,
+  "clientError4xx": 5,
+  "serverError5xx": 2,
+  "rateLimited429": 10
+}
+```
+
+> `rateLimited429` tracks requests blocked by **our platform's rate limiter** (`wasRateLimited: true`). These are excluded from `clientError4xx` to distinguish platform limits from genuine upstream 4xx errors.
+
+---
+
+### 4. GET `/projects/:id/logs`
+
+Returns raw `RequestLog` entries for the project, paginated, **most recent first**. No time-range filter.
+
+**Query params:**
+- `page` — 1-based page number (default: `1`)
+- `limit` — items per page (default: `50`, capped hard at `200` max)
+
+**Headers:** `Authorization: Bearer <accessToken>`
+
+**Example response (200 OK):**
+```json
+{
+  "logs": [
+    {
+      "endpoint": "/posts/1",
+      "method": "GET",
+      "statusCode": 200,
+      "responseTimeMs": 305,
+      "wasRateLimited": false,
+      "timestamp": "2026-07-06T05:49:03.331Z"
+    }
+  ],
+  "page": 1,
+  "totalPages": 5,
+  "totalLogs": 47
+}
+```
+
+---
+
+### Inspecting Logs Manually
+
+**Via mongosh:**
+```js
+use api_rate_limiting_analytics
+
+// 10 most recent logs
+db.requestlogs.find().sort({ timestamp: -1 }).limit(10).pretty()
+
+// Filter by project
+db.requestlogs.find({ projectId: ObjectId("<your-project-id>") }).sort({ timestamp: -1 }).pretty()
+
+// Count rate-limited requests
+db.requestlogs.countDocuments({ wasRateLimited: true })
+
+// Confirm compound index exists
+db.requestlogs.getIndexes()
+```
+
+**Via MongoDB Compass:** Connect → open `api_rate_limiting_analytics` → `requestlogs` → filter `{ "projectId": ObjectId("<id>") }`, sort by `timestamp: -1`.
+
+---
+
+### Running the Analytics Verification Suite
+
+```bash
+npm run dev          # terminal 1 — start the server
+node test-analytics.js  # terminal 2 — run all 10 AC checks
+```
 

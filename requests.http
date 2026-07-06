@@ -94,3 +94,62 @@ GET {{baseUrl}}/proxy/invalid_api_key_xyz_987/posts/1
 
 ### Test Request 8: Query Parameters Preservation
 GET {{baseUrl}}/proxy/{{apiKeyB}}/comments?postId=1
+
+### =========================================================================
+### ANALYTICS API — PART 6
+### =========================================================================
+# First capture the project ID — run createProjectA above, then:
+@projectId = {{createProjectA.response.body.id}}
+
+### Analytics 1: Summary — last 24 hours (default range)
+GET {{baseUrl}}/projects/{{projectId}}/analytics/summary
+Authorization: Bearer {{authToken}}
+
+### Analytics 2: Summary — last 7 days
+GET {{baseUrl}}/projects/{{projectId}}/analytics/summary?range=7d
+Authorization: Bearer {{authToken}}
+
+### Analytics 3: Summary — last 30 days
+GET {{baseUrl}}/projects/{{projectId}}/analytics/summary?range=30d
+Authorization: Bearer {{authToken}}
+
+### Analytics 4: Summary — invalid range falls back to 24h (AC #9)
+GET {{baseUrl}}/projects/{{projectId}}/analytics/summary?range=banana
+Authorization: Bearer {{authToken}}
+
+### Analytics 5: Timeseries — hourly buckets for last 24h (gap-filled)
+GET {{baseUrl}}/projects/{{projectId}}/analytics/timeseries?range=24h
+Authorization: Bearer {{authToken}}
+
+### Analytics 6: Timeseries — daily buckets for last 7d
+GET {{baseUrl}}/projects/{{projectId}}/analytics/timeseries?range=7d
+Authorization: Bearer {{authToken}}
+
+### Analytics 7: Timeseries — daily buckets for last 30d
+GET {{baseUrl}}/projects/{{projectId}}/analytics/timeseries?range=30d
+Authorization: Bearer {{authToken}}
+
+### Analytics 8: Status Breakdown — 24h
+GET {{baseUrl}}/projects/{{projectId}}/analytics/status-breakdown?range=24h
+Authorization: Bearer {{authToken}}
+
+### Analytics 9: Status Breakdown — 7d
+GET {{baseUrl}}/projects/{{projectId}}/analytics/status-breakdown?range=7d
+Authorization: Bearer {{authToken}}
+
+### Analytics 10: Raw Logs — page 1, limit 10
+GET {{baseUrl}}/projects/{{projectId}}/logs?page=1&limit=10
+Authorization: Bearer {{authToken}}
+
+### Analytics 11: Raw Logs — page 2
+GET {{baseUrl}}/projects/{{projectId}}/logs?page=2&limit=10
+Authorization: Bearer {{authToken}}
+
+### Analytics 12: Raw Logs — limit capped at 200 (request 9999, expect ≤200 returned)
+GET {{baseUrl}}/projects/{{projectId}}/logs?limit=9999
+Authorization: Bearer {{authToken}}
+
+### Analytics 13: Cross-user 403 — use tokenB to access projectA (expect 403)
+# @name crossUserCheck
+GET {{baseUrl}}/projects/{{projectId}}/analytics/summary
+Authorization: Bearer {{login.response.body.accessToken}}
