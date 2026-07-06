@@ -510,6 +510,40 @@ db.requestlogs.getIndexes()
 
 ```bash
 npm run dev          # terminal 1 — start the server
-npm run test:analytics  # terminal 2 — run all 10 AC checks
 ```
+
+---
+
+## Frontend Setup (Part 7)
+
+The frontend is a React application built with Vite and designed with a premium, glassmorphic dark-mode interface. It manages auth routes, project creation, key management, credentials copying, and project settings updates.
+
+### 1. Installation
+Navigate to the `frontend` folder and install dependencies:
+```bash
+cd frontend
+npm install
+```
+
+### 2. Environment Setup
+Create a `.env` file in the `frontend` directory (Vite reads variables prefixed with `VITE_`):
+```env
+VITE_API_URL=http://localhost:5000
+```
+*Note: During local development, this points to your Express backend (defaulting to port `5000` to match the backend `.env` configuration).*
+
+### 3. Running Frontend Server
+Start the frontend development server:
+```bash
+npm run dev
+```
+The application will run by default at `http://localhost:5173`.
+
+### 4. Build for Production
+To bundle the frontend for production:
+```bash
+npm run build
+```
+This builds static assets into the `frontend/dist` directory.
+
 

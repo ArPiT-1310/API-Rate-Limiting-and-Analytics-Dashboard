@@ -149,14 +149,14 @@ const SignupPage = () => {
             {validationErrors.password && <span className="inline-error">{validationErrors.password}</span>}
           </div>
 
-          <button type="submit" className="btn-primary" disabled={loading}>
+          <button type="submit" id="signup-submit-btn" className="btn-primary" disabled={loading}>
             {loading ? 'Creating Account...' : 'Sign Up'}
           </button>
         </form>
 
         <div className="auth-footer">
           <p>
-            Already have an account? <Link to="/login">Sign in instead</Link>
+            Already have an account? <Link to="/login" id="login-link">Sign in instead</Link>
           </p>
         </div>
       </div>

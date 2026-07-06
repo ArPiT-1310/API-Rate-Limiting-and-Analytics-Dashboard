@@ -85,14 +85,14 @@ const LoginPage = () => {
             />
           </div>
 
-          <button type="submit" className="btn-primary" disabled={loading}>
+          <button type="submit" id="login-submit-btn" className="btn-primary" disabled={loading}>
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
         <div className="auth-footer">
           <p>
-            Don't have an account? <Link to="/signup">Create one now</Link>
+            Don't have an account? <Link to="/signup" id="signup-link">Create one now</Link>
           </p>
         </div>
       </div>

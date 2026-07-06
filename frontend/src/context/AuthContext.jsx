@@ -24,25 +24,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    try {
-      const data = await loginApi(email, password);
-      setUser(data.user);
-      handleSetToken(data.accessToken);
-      return data;
-    } catch (error) {
-      throw error;
-    }
+    const data = await loginApi(email, password);
+    setUser(data.user);
+    handleSetToken(data.accessToken);
+    return data;
   };
 
   const signup = async (name, email, password) => {
-    try {
-      const data = await signupApi(name, email, password);
-      setUser(data.user);
-      handleSetToken(data.accessToken);
-      return data;
-    } catch (error) {
-      throw error;
-    }
+    const data = await signupApi(name, email, password);
+    setUser(data.user);
+    handleSetToken(data.accessToken);
+    return data;
   };
 
   // Attempt refresh and me call on mount
@@ -57,7 +49,7 @@ export const AuthProvider = ({ children }) => {
         // Step 2: Fetch user profile using the new access token
         const meData = await getMeApi();
         setUser(meData.user);
-      } catch (err) {
+      } catch {
         // Silently fail if not logged in / no refresh token
         setUser(null);
         handleSetToken(null);

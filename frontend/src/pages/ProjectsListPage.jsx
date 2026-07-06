@@ -47,7 +47,7 @@ const ProjectsListPage = () => {
             <span className="user-name">{user?.name}</span>
             <span className="user-email">{user?.email}</span>
           </div>
-          <button onClick={logout} className="btn-logout">
+          <button onClick={logout} id="logout-btn" className="btn-logout">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
             Logout
           </button>
@@ -61,7 +61,7 @@ const ProjectsListPage = () => {
             <h2>My Projects</h2>
             <p className="subtitle">Configure and monitor rate limit policies for your API endpoints</p>
           </div>
-          <Link to="/projects/new" className="btn-primary btn-with-icon">
+          <Link to="/projects/new" id="new-project-btn" className="btn-primary btn-with-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             New Project
           </Link>
@@ -93,8 +93,8 @@ const ProjectsListPage = () => {
           </div>
         ) : (
           <div className="projects-grid">
-            {projects.map((project) => (
-              <ProjectCard key={project._id} project={project} />
+            {projects.map((project, index) => (
+              <ProjectCard key={project._id || project.id || index} project={project} />
             ))}
           </div>
         )}

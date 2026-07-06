@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -13,8 +13,7 @@ const ProjectSettingsPage = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-  // Project state
-  const [project, setProject] = useState(null);
+  // Form state
   const [name, setName] = useState('');
   const [targetBaseUrl, setTargetBaseUrl] = useState('');
   const [maxRequests, setMaxRequests] = useState(100);
@@ -37,14 +36,13 @@ const ProjectSettingsPage = () => {
   const [copyKeySuccess, setCopyKeySuccess] = useState(false);
   const [copyProxySuccess, setCopyProxySuccess] = useState(false);
 
-  const fetchProject = async () => {
+  const fetchProject = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
       setIsForbidden(false);
       const data = await getProjectByIdApi(id);
       
-      setProject(data);
       setName(data.name);
       setTargetBaseUrl(data.targetBaseUrl);
       setApiKey(data.apiKey);
@@ -68,11 +66,11 @@ const ProjectSettingsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchProject();
-  }, [id]);
+  }, [fetchProject]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -100,8 +98,7 @@ const ProjectSettingsPage = () => {
         }
       };
 
-      const result = await updateProjectApi(id, updatedData);
-      setProject(result);
+      await updateProjectApi(id, updatedData);
       setSuccessMsg('Project settings saved successfully!');
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err) {
@@ -122,7 +119,6 @@ const ProjectSettingsPage = () => {
     try {
       const result = await regenerateApiKeyApi(id);
       setApiKey(result.apiKey);
-      setProject(prev => ({ ...prev, apiKey: result.apiKey }));
       setShowRegenConfirm(false);
       setSuccessMsg('API key regenerated successfully! Make sure to update your clients.');
       setTimeout(() => setSuccessMsg(''), 5000);
@@ -212,7 +208,7 @@ const ProjectSettingsPage = () => {
             <span className="user-name">{user?.name}</span>
             <span className="user-email">{user?.email}</span>
           </div>
-          <button onClick={logout} className="btn-logout">
+          <button onClick={logout} id="logout-btn" className="btn-logout">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
             Logout
           </button>
@@ -309,6 +305,7 @@ const ProjectSettingsPage = () => {
                 {!showRegenConfirm ? (
                   <button 
                     type="button" 
+                    id="regenerate-key-btn"
                     className="btn-danger-outline" 
                     onClick={() => setShowRegenConfirm(true)}
                   >
@@ -322,6 +319,7 @@ const ProjectSettingsPage = () => {
                     <div className="confirm-actions">
                       <button 
                         type="button" 
+                        id="confirm-regen-btn"
                         className="btn-danger" 
                         onClick={handleRegenerateKey}
                       >
@@ -329,6 +327,7 @@ const ProjectSettingsPage = () => {
                       </button>
                       <button 
                         type="button" 
+                        id="cancel-regen-btn"
                         className="btn-secondary" 
                         onClick={() => setShowRegenConfirm(false)}
                       >
@@ -403,7 +402,7 @@ const ProjectSettingsPage = () => {
               </div>
 
               <div className="form-actions border-top">
-                <button type="submit" className="btn-primary" disabled={saveLoading}>
+                <button type="submit" id="save-settings-btn" className="btn-primary" disabled={saveLoading}>
                   {saveLoading ? 'Saving...' : 'Save Settings'}
                 </button>
               </div>
@@ -418,6 +417,7 @@ const ProjectSettingsPage = () => {
                 {!showDeleteConfirm ? (
                   <button 
                     type="button" 
+                    id="delete-project-btn"
                     className="btn-danger" 
                     onClick={() => setShowDeleteConfirm(true)}
                   >
@@ -431,6 +431,7 @@ const ProjectSettingsPage = () => {
                     <div className="confirm-actions">
                       <button 
                         type="button" 
+                        id="confirm-delete-btn"
                         className="btn-danger" 
                         onClick={handleDeleteProject}
                       >
@@ -438,6 +439,7 @@ const ProjectSettingsPage = () => {
                       </button>
                       <button 
                         type="button" 
+                        id="cancel-delete-btn"
                         className="btn-secondary" 
                         onClick={() => setShowDeleteConfirm(false)}
                       >

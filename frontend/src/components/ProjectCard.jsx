@@ -45,7 +45,7 @@ const ProjectCard = ({ project }) => {
   };
 
   return (
-    <div className="project-card" onClick={() => navigate(`/projects/${project._id}/settings`)}>
+    <div className="project-card" onClick={() => navigate(`/projects/${project.id || project._id}/settings`)}>
       <div className="project-card-header">
         <h3 className="project-title">{project.name}</h3>
         <span className="rate-limit-badge">

@@ -73,7 +73,7 @@ const NewProjectPage = () => {
 
       const newProject = await createProjectApi(projectData);
       // Redirect to settings page for the newly created project
-      navigate(`/projects/${newProject._id}/settings`);
+      navigate(`/projects/${newProject.id || newProject._id}/settings`);
     } catch (err) {
       console.error(err);
       if (err.response) {
@@ -101,7 +101,7 @@ const NewProjectPage = () => {
             <span className="user-name">{user?.name}</span>
             <span className="user-email">{user?.email}</span>
           </div>
-          <button onClick={logout} className="btn-logout">
+          <button onClick={logout} id="logout-btn" className="btn-logout">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
             Logout
           </button>
@@ -205,8 +205,8 @@ const NewProjectPage = () => {
           </div>
 
           <div className="form-actions">
-            <Link to="/projects" className="btn-secondary">Cancel</Link>
-            <button type="submit" className="btn-primary" disabled={loading}>
+            <Link to="/projects" id="cancel-create-btn" className="btn-secondary">Cancel</Link>
+            <button type="submit" id="create-project-submit-btn" className="btn-primary" disabled={loading}>
               {loading ? 'Creating...' : 'Create Project'}
             </button>
           </div>
