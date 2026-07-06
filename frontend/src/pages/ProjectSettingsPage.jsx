@@ -174,7 +174,7 @@ const ProjectSettingsPage = () => {
       <div className="dashboard-container">
         <header className="dashboard-header glassmorphism">
           <div className="brand">
-            <span className="brand-logo">AG</span>
+            <span className="brand-logo">AS</span>
             <h1>Antigravity Limiter</h1>
           </div>
           <button onClick={logout} className="btn-logout">Logout</button>

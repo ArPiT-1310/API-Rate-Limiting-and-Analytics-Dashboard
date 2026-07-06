@@ -44,7 +44,7 @@ const LoginPage = () => {
     <div className="auth-container">
       <div className="auth-card glassmorphism">
         <div className="auth-header">
-          <div className="brand-logo">AG</div>
+          <div className="brand-logo">AS</div>
           <h2>Welcome back</h2>
           <p className="subtitle">Sign in to manage your API rate limits and routes</p>
         </div>

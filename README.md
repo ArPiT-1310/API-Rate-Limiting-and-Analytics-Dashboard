@@ -1,549 +1,165 @@
-# Auth Service (Node.js, Express, MongoDB, JWT)
+# 🚀 API Rate Limiting & Analytics Dashboard
 
-This is the Authentication Service part of the API Rate Limiter & Analytics Platform. It is built using Node.js, Express, MongoDB (Mongoose), and JSON Web Tokens (JWT) for secure authentication.
+A full-stack platform that lets you manage APIs behind a secure **reverse proxy** with built-in **rate limiting**, **request logging**, and an **interactive analytics dashboard**.
 
 ---
 
-## Folder Structure
+## ✨ Features
 
-```text
-/src
-  /models
-    User.js
-  /routes
-    auth.routes.js
-  /controllers
-    auth.controller.js
-  /middleware
-    verifyToken.js
-  /utils
-    generateTokens.js
-  server.js
-.env
-.env.example
-package.json
-/tests
-  verify.js
-  test-ratelimiter.js
-  test-logging.js
-  test-analytics.js
+- 🔐 **JWT Authentication** — Secure signup / login with HTTP-only cookies
+- 📁 **Project Management** — Create projects, each with its own API key and a configurable upstream URL
+- 🔁 **Reverse Proxy** — All requests go through `/proxy/:apiKey/*` and are forwarded to your target API
+- 🚦 **Redis Rate Limiting** — Fixed-window rate limiting enforced per API key (fails open if Redis is down)
+- 📝 **Request Logging** — Every proxied request is saved to MongoDB with status code, latency, and path
+- 📊 **Analytics Dashboard** — Visualise requests over time, status code breakdown, and recent logs — with time-range filtering
+- 🛡️ **Ownership Gating** — Users can only access their own projects
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Tech |
+|-------|------|
+| **Backend** | Node.js, Express |
+| **Database** | MongoDB (Mongoose) |
+| **Cache / Rate Limit** | Redis (ioredis) |
+| **Auth** | JWT + bcrypt |
+| **Frontend** | React (Vite), React Router |
+| **Charts** | Recharts |
+| **HTTP Client** | Axios |
+
+---
+
+## 📁 Project Structure
+
+```
+├── src/                    # Backend source
+│   ├── controllers/        # Route handlers (auth, projects, proxy, analytics)
+│   ├── middleware/         # JWT auth, ownership verification, rate limiter
+│   ├── models/             # Mongoose schemas (User, Project, RequestLog)
+│   ├── routes/             # Express routers
+│   ├── services/           # Redis client, proxy logic
+│   └── server.js           # App entry point
+│
+├── frontend/               # React frontend (Vite)
+│   └── src/
+│       ├── pages/          # Login, Signup, Projects, Dashboard, Settings
+│       ├── components/     # Charts, stat cards, logs table
+│       ├── api/            # Axios instance + API calls
+│       └── context/        # AuthContext (global auth state)
+│
+└── tests/                  # Automated test suites
 ```
 
 ---
 
-## Getting Started
+## ⚙️ Getting Started
 
-### 1. Installation
+### Prerequisites
 
-Install project dependencies:
+Make sure you have the following installed:
+- [Node.js](https://nodejs.org/) (v18+)
+- [MongoDB](https://www.mongodb.com/) (local or Atlas)
+- [Redis](https://redis.io/) (local or cloud)
+
+---
+
+### 1. Clone the repository
+
 ```bash
-npm install
+git clone https://github.com/ArPiT-1310/API-Rate-Limiting-and-Analytics-Dashboard.git
+cd API-Rate-Limiting-and-Analytics-Dashboard
 ```
 
-### 2. Environment Setup
+---
 
-Create a `.env` file in the root directory (based on `.env.example`):
+### 2. Configure environment variables
+
+Create a `.env` file in the project root:
 
 ```env
-MONGODB_URI=mongodb://127.0.0.1:27017/auth_service_db
-JWT_ACCESS_SECRET=your_super_secret_access_key
-JWT_REFRESH_SECRET=your_super_secret_refresh_key
-PORT=5000
-CLIENT_URL=http://localhost:5173
+PORT=3000
+MONGO_URI=mongodb://localhost:27017/api-dashboard
+JWT_SECRET=your_super_secret_key
+REDIS_URL=redis://localhost:6379
 ```
 
-Make sure your MongoDB server is running on the specified `MONGODB_URI`.
+---
 
-### 3. Running the Server
+### 3. Install & run the backend
 
-Start in development mode (with hot reloading via `nodemon`):
 ```bash
+npm install
 npm run dev
 ```
 
-Start in production mode:
-```bash
-npm start
-```
+The backend starts at `http://localhost:3000`.
 
 ---
 
-## API Endpoints Reference & Examples
+### 4. Install & run the frontend
 
-### 1. Register User (POST `/auth/signup`)
-
-Registers a new user, hashes the password using `bcrypt` (salt rounds = 10), generates tokens, sets the `refreshToken` as an `httpOnly`, `secure`, `sameSite=strict` cookie, and returns the user object and `accessToken`.
-
-*   **URL:** `/auth/signup`
-*   **Method:** `POST`
-*   **Request Body:**
-    ```json
-    {
-      "name": "Jane Doe",
-      "email": "jane@example.com",
-      "password": "securepassword123"
-    }
-    ```
-*   **Response (201 Created):**
-    ```json
-    {
-      "user": {
-        "id": "64bfec1dfc13ae32a6000101",
-        "name": "Jane Doe",
-        "email": "jane@example.com"
-      },
-      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-    }
-    ```
-*   **Response (400 Bad Request - Validation Failed):**
-    ```json
-    {
-      "error": "Password must be at least 6 characters long"
-    }
-    ```
-*   **Response (409 Conflict - Duplicate Email):**
-    ```json
-    {
-      "error": "Email is already registered"
-    }
-    ```
-
----
-
-### 2. Login User (POST `/auth/login`)
-
-Verifies the user's email and password, signs new tokens, sets the `refreshToken` cookie, and returns the user object and `accessToken`.
-
-*   **URL:** `/auth/login`
-*   **Method:** `POST`
-*   **Request Body:**
-    ```json
-    {
-      "email": "jane@example.com",
-      "password": "securepassword123"
-    }
-    ```
-*   **Response (200 OK):**
-    ```json
-    {
-      "user": {
-        "id": "64bfec1dfc13ae32a6000101",
-        "name": "Jane Doe",
-        "email": "jane@example.com"
-      },
-      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-    }
-    ```
-*   **Response (401 Unauthorized - Generic message for security):**
-    ```json
-    {
-      "error": "Invalid email or password"
-    }
-    ```
-
----
-
-### 3. Refresh Access Token (POST `/auth/refresh`)
-
-Reads the `refreshToken` from the HTTP cookie and issues a new access token (15m duration).
-
-*   **URL:** `/auth/refresh`
-*   **Method:** `POST`
-*   **Headers:** (Requires cookie parser, automatically reads cookie: `refreshToken=<token>`)
-*   **Response (200 OK):**
-    ```json
-    {
-      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-    }
-    ```
-*   **Response (401 Unauthorized - Missing or invalid/expired refresh token):**
-    ```json
-    {
-      "error": "Invalid refresh token"
-    }
-    ```
-
----
-
-### 4. Fetch Profile (GET `/auth/me`)
-
-Retrieves the current authenticated user's profile information. This endpoint is protected by `verifyToken` middleware and uses the `req.userId` attached by the token check.
-
-*   **URL:** `/auth/me`
-*   **Method:** `GET`
-*   **Headers:**
-    `Authorization: Bearer <accessToken>`
-*   **Response (200 OK):**
-    ```json
-    {
-      "user": {
-        "id": "64bfec1dfc13ae32a6000101",
-        "name": "Jane Doe",
-        "email": "jane@example.com"
-      }
-    }
-    ```
-*   **Response (401 Unauthorized - Missing or expired header token):**
-    ```json
-    {
-      "error": "Invalid or expired token"
-    }
-    ```
-
----
-
-## Verification Testing
-
-You can run our automated HTTP verification script to test all 10 acceptance criteria specified in the instructions:
-
-1.  Make sure your MongoDB server is active.
-2.  Start the application server:
-    ```bash
-    npm run dev
-    ```
-3.  In another terminal, run:
-    ```bash
-    npm run test:auth
-    ```
-
-This script will run sequential requests verifying: signup, duplicate registration, validation, login success/failure, protected route authentication, refresh flow, cookie attributes, and ensuring the password field is never leaked in JSON responses.
-
----
-
-## Part 3 — Reverse Proxy
-
-The reverse proxy allows external consumers of a Project to route their API calls through the platform using just the Project's `apiKey`. No JWT is required — the apiKey embedded in the URL is the sole authentication mechanism.
-
-### Endpoint
-
-```
-ALL /proxy/:apiKey/*
-```
-
-| Component | Description |
-|---|---|
-| `:apiKey` | The Project's auto-generated API key |
-| `/*` | Wildcard — any path, forwarded verbatim to `targetBaseUrl` |
-
-### How It Works
-
-1. Validates the `apiKey` against the database (`Project.findOne({ apiKey })`).
-2. Builds the target URL: `project.targetBaseUrl + forwardedPath + ?queryString`.
-3. Strips sensitive headers before forwarding: `host`, `authorization`, `content-length`, `connection`.
-4. Forwards the request via `axios` with a **10-second timeout**.
-5. Relays the upstream response (status + body + content-type) back to the caller unchanged — including 4xx/5xx.
-6. Returns **502** if the upstream is unreachable (DNS failure, timeout, etc.).
-
-### Postman / curl Testing with JSONPlaceholder
-
-**Step 1 — Create a proxy project** (requires Bearer token from login/signup):
-
-```
-POST http://localhost:5000/projects
-Authorization: Bearer <accessToken>
-Content-Type: application/json
-
-{
-  "name": "JSONPlaceholder Proxy",
-  "targetBaseUrl": "https://jsonplaceholder.typicode.com"
-}
-```
-
-Copy the `apiKey` from the response. Use `<KEY>` below.
-
----
-
-**GET a single post (AC #2):**
-```
-GET http://localhost:5000/proxy/<KEY>/posts/1
-```
-Expected: **200**, same JSON as `https://jsonplaceholder.typicode.com/posts/1`
-
----
-
-**GET all posts (AC #3):**
-```
-GET http://localhost:5000/proxy/<KEY>/posts
-```
-Expected: **200**, array of 100 posts
-
----
-
-**POST with body (AC #4):**
-```
-POST http://localhost:5000/proxy/<KEY>/posts
-Content-Type: application/json
-
-{
-  "title": "Hello Proxy",
-  "body": "Test body",
-  "userId": 1
-}
-```
-Expected: **201**, jsonplaceholder echoes back the created object
-
----
-
-**Invalid API key (AC #5):**
-```
-GET http://localhost:5000/proxy/invalid_key/posts/1
-```
-Expected: **404** `{ "error": "Invalid API key" }`
-
----
-
-**Upstream 404 pass-through (AC #6):**
-```
-GET http://localhost:5000/proxy/<KEY>/posts/999999999
-```
-Expected: **404** from jsonplaceholder (not 502 — proves 4xx are passed through)
-
----
-
-**Query string preservation (AC #9):**
-```
-GET http://localhost:5000/proxy/<KEY>/comments?postId=1
-```
-Expected: **200**, array of 5 comments all with `postId: 1`
-
----
-
-**502 on unreachable upstream (AC #7):**
-Update the project's `targetBaseUrl` to `https://this-domain-does-not-exist-99999.com` via `PATCH /projects/:id`, then call any proxy route. Expected: **502** `{ "error": "Upstream API unreachable" }`
-
----
-
-## Rate Limiting (Part 4)
-
-The platform enforces project-specific rate limits using a Redis-backed **Fixed Window Rate Limiting** algorithm.
-
-### Key Implementation Details
-1. **Atomic Increments**: We use Redis `INCR` to atomically increment request counts. This prevents race conditions under highly concurrent requests (unlike a read-then-write pattern, e.g. `GET` then `SET`).
-2. **Dynamic TTLs**: On the first request in a new window, the key is set to expire (`EXPIRE`) based on the Project's configured `rateLimit.windowMs` (converted to ceil seconds).
-3. **Fail-Open Strategy**: If Redis goes down or times out (1s limit), the proxy *fails open*. It logs the error on the server side and forwards the request without rate limiting. This guarantees high API availability and avoids complete service outages during Redis maintenance or downtime.
-4. **Header Reporting**: Every response (both successful and rate-limited) includes standard headers:
-   - `X-RateLimit-Limit`: Maximum requests allowed in the window.
-   - `X-RateLimit-Remaining`: Requests left in the current window.
-   - `X-RateLimit-Reset`: Remaining time in seconds before the window resets.
-5. **Rate Limit Exceeded (429)**: When limits are exceeded, a `429 Too Many Requests` is returned with a `Retry-After` header indicating when requests can resume, and a body of `{ error: "Rate limit exceeded", retryAfter: <seconds> }`.
-
-### Testing Rate Limiting
-
-We provide both a visual manual testing file (`requests.http`) and an automated test suite (`test-ratelimiter.js`).
-
-#### 1. Automated Verification Suite
-We have added an automated script that tests all 9 acceptance criteria (including sequential requests, concurrent/parallel requests, independent projects, invalid API keys, and docker-based Redis fail-over):
-
-To run it:
-1. Ensure the backend server is running (`npm run dev`).
-2. In a separate terminal, run:
-   ```bash
-   npm run test:rate-limit
-   ```
-
-#### 2. Manual Testing (Fast Testing Setup)
-To manually test the rate limiter without waiting a full 60 seconds:
-1. Create a test project with a lower window size, e.g., 10 seconds:
-   ```http
-   POST http://localhost:5000/projects
-   Authorization: Bearer <token>
-   Content-Type: application/json
-
-   {
-     "name": "Fast Test Project",
-     "targetBaseUrl": "https://jsonplaceholder.typicode.com",
-     "rateLimit": {
-       "windowMs": 10000,
-       "maxRequests": 5
-     }
-   }
-   ```
-2. Call the proxy sequentially using the returned API key:
-   ```bash
-   curl -i http://localhost:5000/proxy/<API_KEY>/posts/1
-   ```
-   Observe the headers:
-   - `X-RateLimit-Remaining` will decrement from `4` to `0`.
-   - On the 6th call, you'll receive a `429 Too Many Requests` status code with `Retry-After` header and `{ "error": "Rate limit exceeded", "retryAfter": <seconds> }` JSON body.
-3. Wait 10 seconds and call again; it will succeed again.
-
----
-
-## Analytics API (Part 6)
-
-All analytics endpoints are **JWT-protected** and **ownership-gated** — a user can only query analytics for their own projects. Authentication uses the same `Bearer` token from `/auth/login`.
-
-> **Base path:** `/projects/:id/analytics` and `/projects/:id/logs`
-> Replace `:id` with the project's MongoDB ObjectId (from `GET /projects`).
-
----
-
-### Query Param: `?range`
-
-Accepted values: `24h` (default), `7d`, `30d`. Any invalid value falls back to `24h`.
-
-| Value | Timeseries buckets | Cutoff |
-|---|---|---|
-| `24h` | Hourly (24–25 entries, current hour always last) | now − 24 hours |
-| `7d`  | Daily (7–8 entries, current day always last)     | now − 7 days   |
-| `30d` | Daily (30–31 entries, current day always last)   | now − 30 days  |
-
----
-
-### 1. GET `/projects/:id/analytics/summary`
-
-Returns aggregated stats for the project within the chosen time range.
-
-**Headers:** `Authorization: Bearer <accessToken>`
-
-**Example response (200 OK):**
-```json
-{
-  "totalRequests": 47,
-  "avgResponseTimeMs": 312,
-  "errorRate": 12.77,
-  "rateLimitedCount": 5
-}
-```
-
-**Zero-traffic response (no logs yet):**
-```json
-{ "totalRequests": 0, "avgResponseTimeMs": 0, "errorRate": 0, "rateLimitedCount": 0 }
-```
-
-> `errorRate` counts only requests with `statusCode >= 400` that were **not** from the platform rate limiter (`wasRateLimited: false`). Rate-limiter 429s appear in `rateLimitedCount` only.
-
----
-
-### 2. GET `/projects/:id/analytics/timeseries`
-
-Returns per-bucket request counts and average response times, sorted chronologically (oldest first). **Gaps are zero-filled** — every hour/day in the range has an entry even with zero traffic.
-
-**Headers:** `Authorization: Bearer <accessToken>`
-
-**Example response (200 OK, `?range=24h`):**
-```json
-[
-  { "bucket": "2026-07-05T10:00:00.000Z", "count": 0, "avgResponseTimeMs": 0 },
-  { "bucket": "2026-07-05T11:00:00.000Z", "count": 3, "avgResponseTimeMs": 287 },
-  { "bucket": "2026-07-05T12:00:00.000Z", "count": 0, "avgResponseTimeMs": 0 }
-]
-```
-
----
-
-### 3. GET `/projects/:id/analytics/status-breakdown`
-
-Groups all requests in the range by HTTP status category.
-
-**Headers:** `Authorization: Bearer <accessToken>`
-
-**Example response (200 OK):**
-```json
-{
-  "success2xx": 30,
-  "clientError4xx": 5,
-  "serverError5xx": 2,
-  "rateLimited429": 10
-}
-```
-
-> `rateLimited429` tracks requests blocked by **our platform's rate limiter** (`wasRateLimited: true`). These are excluded from `clientError4xx` to distinguish platform limits from genuine upstream 4xx errors.
-
----
-
-### 4. GET `/projects/:id/logs`
-
-Returns raw `RequestLog` entries for the project, paginated, **most recent first**. No time-range filter.
-
-**Query params:**
-- `page` — 1-based page number (default: `1`)
-- `limit` — items per page (default: `50`, capped hard at `200` max)
-
-**Headers:** `Authorization: Bearer <accessToken>`
-
-**Example response (200 OK):**
-```json
-{
-  "logs": [
-    {
-      "endpoint": "/posts/1",
-      "method": "GET",
-      "statusCode": 200,
-      "responseTimeMs": 305,
-      "wasRateLimited": false,
-      "timestamp": "2026-07-06T05:49:03.331Z"
-    }
-  ],
-  "page": 1,
-  "totalPages": 5,
-  "totalLogs": 47
-}
-```
-
----
-
-### Inspecting Logs Manually
-
-**Via mongosh:**
-```js
-use api_rate_limiting_analytics
-
-// 10 most recent logs
-db.requestlogs.find().sort({ timestamp: -1 }).limit(10).pretty()
-
-// Filter by project
-db.requestlogs.find({ projectId: ObjectId("<your-project-id>") }).sort({ timestamp: -1 }).pretty()
-
-// Count rate-limited requests
-db.requestlogs.countDocuments({ wasRateLimited: true })
-
-// Confirm compound index exists
-db.requestlogs.getIndexes()
-```
-
-**Via MongoDB Compass:** Connect → open `api_rate_limiting_analytics` → `requestlogs` → filter `{ "projectId": ObjectId("<id>") }`, sort by `timestamp: -1`.
-
----
-
-### Running the Analytics Verification Suite
-
-```bash
-npm run dev          # terminal 1 — start the server
-```
-
----
-
-## Frontend Setup (Part 7)
-
-The frontend is a React application built with Vite and designed with a premium, glassmorphic dark-mode interface. It manages auth routes, project creation, key management, credentials copying, and project settings updates.
-
-### 1. Installation
-Navigate to the `frontend` folder and install dependencies:
 ```bash
 cd frontend
 npm install
-```
-
-### 2. Environment Setup
-Create a `.env` file in the `frontend` directory (Vite reads variables prefixed with `VITE_`):
-```env
-VITE_API_URL=http://localhost:5000
-```
-*Note: During local development, this points to your Express backend (defaulting to port `5000` to match the backend `.env` configuration).*
-
-### 3. Running Frontend Server
-Start the frontend development server:
-```bash
 npm run dev
 ```
-The application will run by default at `http://localhost:5173`.
 
-### 4. Build for Production
-To bundle the frontend for production:
+The frontend starts at `http://localhost:5173`.
+
+---
+
+## 🔌 API Overview
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/auth/signup` | Register a new user |
+| `POST` | `/auth/login` | Login and receive JWT cookie |
+| `POST` | `/auth/logout` | Clear session |
+| `GET` | `/projects` | List all projects for the logged-in user |
+| `POST` | `/projects` | Create a new project |
+| `GET` | `/projects/:id` | Get a single project |
+| `PUT` | `/projects/:id` | Update project name / target URL |
+| `DELETE` | `/projects/:id` | Delete a project |
+| `POST` | `/projects/:id/rotate-key` | Rotate the API key |
+| `ANY` | `/proxy/:apiKey/*` | Reverse proxy (rate limited + logged) |
+| `GET` | `/analytics/:projectId/overview` | Stats overview |
+| `GET` | `/analytics/:projectId/requests-over-time` | Time-series data |
+| `GET` | `/analytics/:projectId/status-breakdown` | Status code counts |
+| `GET` | `/analytics/:projectId/recent-logs` | Latest request logs |
+
+---
+
+## 🧪 Running Tests
+
 ```bash
-npm run build
+# Auth & project management
+npm run test:auth
+
+# Rate limiter (requires Redis)
+npm run test:rate-limit
+
+# Request logging
+npm run test:logging
+
+# Analytics endpoints
+npm run test:analytics
 ```
-This builds static assets into the `frontend/dist` directory.
 
+---
 
+## 📸 Screenshots
+
+> _Add screenshots here once you deploy or run the app locally._
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to open an issue or submit a pull request.
+
+---
+
+## 📄 License
+
+This project is open-source under the [MIT License](LICENSE).

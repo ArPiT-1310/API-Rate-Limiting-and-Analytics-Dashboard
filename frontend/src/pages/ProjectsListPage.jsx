@@ -39,7 +39,7 @@ const ProjectsListPage = () => {
       {/* Top Navbar */}
       <header className="dashboard-header glassmorphism">
         <div className="brand">
-          <span className="brand-logo">AG</span>
+          <span className="brand-logo">AS</span>
           <h1>Antigravity Limiter</h1>
         </div>
         <div className="user-profile">

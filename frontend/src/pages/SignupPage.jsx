@@ -82,7 +82,7 @@ const SignupPage = () => {
     <div className="auth-container">
       <div className="auth-card glassmorphism">
         <div className="auth-header">
-          <div className="brand-logo">AG</div>
+          <div className="brand-logo">AS</div>
           <h2>Create account</h2>
           <p className="subtitle">Start proxying and rate limiting your API requests today</p>
         </div>
