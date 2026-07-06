@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const ProjectCard = ({ project }) => {
   const navigate = useNavigate();
@@ -111,6 +111,15 @@ const ProjectCard = ({ project }) => {
           Configure settings
           <svg className="arrow-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
         </span>
+        <Link
+          to={`/projects/${project.id || project._id}/dashboard`}
+          onClick={(e) => e.stopPropagation()}
+          className="btn-dashboard-link"
+          title="View Analytics Dashboard"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"></rect><polyline points="8 21 12 17 16 21"></polyline></svg>
+          Dashboard
+        </Link>
       </div>
     </div>
   );

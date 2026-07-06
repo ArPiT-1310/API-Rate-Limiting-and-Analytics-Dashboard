@@ -226,6 +226,10 @@ const ProjectSettingsPage = () => {
             <h2>Project Settings</h2>
             <p className="subtitle">Manage credentials, endpoints, and rate limiting thresholds</p>
           </div>
+          <Link to={`/projects/${id}/dashboard`} id="view-dashboard-btn" className="btn-primary btn-with-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"></rect><polyline points="8 21 12 17 16 21"></polyline></svg>
+            View Dashboard
+          </Link>
         </div>
 
         {error && (

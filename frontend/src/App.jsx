@@ -7,6 +7,7 @@ import SignupPage from './pages/SignupPage';
 import ProjectsListPage from './pages/ProjectsListPage';
 import NewProjectPage from './pages/NewProjectPage';
 import ProjectSettingsPage from './pages/ProjectSettingsPage';
+import ProjectDashboardPage from './pages/ProjectDashboardPage';
 
 // A component that handles redirecting the root `/` route
 const RootRedirect = () => {
@@ -58,6 +59,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProjectSettingsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/projects/:id/dashboard" 
+            element={
+              <ProtectedRoute>
+                <ProjectDashboardPage />
               </ProtectedRoute>
             } 
           />
