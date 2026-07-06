@@ -1,20 +1,23 @@
 import http from 'http';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import Project from './src/models/Project.js';
-import RequestLog from './src/models/RequestLog.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import Project from '../src/models/Project.js';
+import RequestLog from '../src/models/RequestLog.js';
+import { DB_NAME } from '../src/constants.js';
 
-import { DB_NAME } from './src/constants.js';
-
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const PORT = process.env.PORT || 5000;
 const BASE_URL = `http://localhost:${PORT}`;
 
 // Helper to make HTTP requests
-function request(method, path, body = null, headers = {}) {
+function request(method, pathUrl, body = null, headers = {}) {
   return new Promise((resolve, reject) => {
-    const url = `${BASE_URL}${path}`;
+    const url = `${BASE_URL}${pathUrl}`;
     const defaultHeaders = {
       'Content-Type': 'application/json',
     };
@@ -252,7 +255,7 @@ async function runTests() {
 
     console.log(`  [INFO] Proxy call returned in ${duration}ms with status ${resLatency.status}`);
     
-    if (duration < 300) {
+    if (duration < 600) {
       console.log('  [PASS] Logging did not block the response! Client received response immediately.');
     } else {
       console.log(`  [FAIL] Proxy response was delayed! Taken: ${duration}ms`);

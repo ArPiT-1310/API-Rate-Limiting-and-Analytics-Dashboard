@@ -22,7 +22,11 @@ This is the Authentication Service part of the API Rate Limiter & Analytics Plat
 .env
 .env.example
 package.json
-verify.js
+/tests
+  verify.js
+  test-ratelimiter.js
+  test-logging.js
+  test-analytics.js
 ```
 
 ---
@@ -199,7 +203,7 @@ You can run our automated HTTP verification script to test all 10 acceptance cri
     ```
 3.  In another terminal, run:
     ```bash
-    node verify.js
+    npm run test:auth
     ```
 
 This script will run sequential requests verifying: signup, duplicate registration, validation, login success/failure, protected route authentication, refresh flow, cookie attributes, and ensuring the password field is never leaked in JSON responses.
@@ -506,6 +510,6 @@ db.requestlogs.getIndexes()
 
 ```bash
 npm run dev          # terminal 1 — start the server
-node test-analytics.js  # terminal 2 — run all 10 AC checks
+npm run test:analytics  # terminal 2 — run all 10 AC checks
 ```
 

@@ -1,17 +1,21 @@
 import http from 'http';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import Project from './src/models/Project.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import Project from '../src/models/Project.js';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const PORT = process.env.PORT || 5000;
 const BASE_URL = `http://localhost:${PORT}`;
 
 // Helper function to make HTTP requests and parse response and headers
-function request(method, path, body = null, headers = {}, cookie = null) {
+function request(method, pathUrl, body = null, headers = {}, cookie = null) {
   return new Promise((resolve, reject) => {
-    const url = `${BASE_URL}${path}`;
+    const url = `${BASE_URL}${pathUrl}`;
     const defaultHeaders = {
       'Content-Type': 'application/json',
     };
@@ -540,4 +544,3 @@ async function runTests() {
 }
 
 runTests();
-

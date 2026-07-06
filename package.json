@@ -7,7 +7,10 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test:rate-limit": "node test-ratelimiter.js"
+    "test:rate-limit": "node tests/test-ratelimiter.js",
+    "test:auth": "node tests/verify.js",
+    "test:logging": "node tests/test-logging.js",
+    "test:analytics": "node tests/test-analytics.js"
   },
   "dependencies": {
     "axios": "^1.18.1",
